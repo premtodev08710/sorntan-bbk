@@ -172,7 +172,7 @@ function renderGrid(teacherId){
     // โฮมรูม (คงที่)
     const homeroomCell = document.createElement('td');
     homeroomCell.className = 'static-cell';
-    homeroomCell.textContent = 'โฮมรูม';
+    homeroomCell.textContent = 'อ่านคิดวิเคราะห์';
     tr.appendChild(homeroomCell);
 
     // คาบ 1-3 (แก้ไขได้)
