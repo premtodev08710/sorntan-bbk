@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <title>แบบจัดตารางสอนแทน (พิมพ์)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap");
+      body {
+        font-family: "Sarabun", sans-serif;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #000;
+        padding: 4px;
+        text-align: center;
+        vertical-align: middle;
+        font-size: 12px;
+      }
+
+      /* ช่องลงนามต่อแถว (ครูที่สอนแทนลงนาม) */
+      td.signature {
+        width: 170px;
+      }
+      .signature-lines {
+        text-align: left;
+        padding: 6px 10px;
+      }
+      .signature-lines .row {
+        margin: 10px 0;
+      }
+      .signature-lines .label {
+        font-size: 11px;
+        display: inline-block;
+        width: 40px;
+      }
+      .signature-lines .line {
+        display: inline-block;
+        border-bottom: 1px solid #000;
+        width: calc(100% - 50px);
+        height: 0;
+        transform: translateY(-3px);
+      }
+
+      @media print {
+        @page {
+          size: A4 landscape;
+          margin: 1cm;
+        }
+        .no-print {
+          display: none !important;
+        }
+        body {
+          font-size: 12px;
+        }
+      }
+      /* ช่องลงนามให้แคบลง */
+      td.signature {
+        width: 100px; /* เดิม 170px → ปรับเป็น 100px */
+      }
+      .signature-lines {
+        text-align: left;
+        padding: 4px 6px; /* ลด padding */
+      }
+      .signature-lines .row {
+        margin: 6px 0; /* ลดระยะห่างบรรทัด */
+      }
+      .signature-lines .label {
+        font-size: 10px;
+        display: inline-block;
+        width: 35px; /* แคบลงจาก 40px */
+      }
+      .signature-lines .line {
+        display: inline-block;
+        border-bottom: 1px solid #000;
+        width: calc(100% - 45px); /* ปรับตามความกว้าง label */
+        height: 0;
+        transform: translateY(-2px);
+      }
+    </style>
+  </head>
+  <body class="p-4">
+    <!-- แถบควบคุม (ไม่พิมพ์) -->
+    <div class="flex justify-between items-center no-print mb-3">
+      <button id="btnBack" class="px-3 py-2 rounded bg-gray-200">
+        ⬅️ กลับ
+      </button>
+      <button id="btnPrint" class="px-3 py-2 rounded bg-blue-600 text-white">
+        🖨️ พิมพ์
+      </button>
+    </div>
+
+    <!-- หัวกระดาษ -->
+<div class="max-w-xl mx-auto   p-5 text-center">
+  <div class="flex flex-col items-center gap-3">
+    <img src="logo.png" alt="logo โรงเรียน" class="w-16 h-16 object-contain">
+
+    <div class="space-y-1">
+      <div class="text-xl font-extrabold text-gray-800 tracking-wide">
+        แบบจัดตารางสอนแทน
+      </div>
+      <div class="text-sm text-gray-600 leading-snug">
+        โรงเรียนบ้านบึงกาฬ<br>
+        สำนักงานเขตพื้นที่การศึกษาประถมศึกษาบึงกาฬ
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 h-px w-full bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+</div>
+
+
+    <!-- วันที่ (ดึงจากพารามิเตอร์ ?date=YYYY-MM-DD) -->
+    <div class="mb-2">
+      วัน <span id="thDay">........</span> ที่
+      <span id="thDate">....</span> เดือน
+      <span id="thMonth">................</span> พ.ศ.
+      <span id="thYear">........</span>
+    </div>
+
+    <!-- ตารางพิมพ์ -->
+    <table id="printTable">
+      <thead>
+        <tr>
+          <th>ที่</th>
+          <th>ครูที่ไม่มาปฏิบัติราชการ</th>
+          <th>สาเหตุที่ไม่มาปฏิบัติราชการ</th>
+          <th>ชั่วโมงที่</th>
+          <th>เวลา</th>
+          <th>รายวิชา</th>
+          <th>ชั้น</th>
+          <th>ครูที่ปฏิบัติราชการแทน</th>
+          <th>ลงนามรับทราบ</th>
+        </tr>
+      </thead>
+      <tbody id="printBody"></tbody>
+    </table>
+
+    <script type="module" src="print.js"></script>
+  </body>
+</html>

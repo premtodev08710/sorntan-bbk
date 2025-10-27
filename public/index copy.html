@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ระบบจัดตารางสอนครู</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; }
+        .timetable-cell { min-height:60px; border:1px solid #e5e7eb; padding:8px; text-align:center; vertical-align:middle; background:white; transition:all .2s; }
+        .timetable-cell:hover { background:#f3f4f6; }
+        .timetable-cell:focus { outline:2px solid #3b82f6; background:#eff6ff; }
+        .day-header { background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:white; font-weight:600; padding:12px; text-align:center; }
+        .period-header { background:linear-gradient(135deg,#10b981,#059669); color:white; font-weight:600; padding:12px; text-align:center; writing-mode:vertical-rl; text-orientation:mixed; }
+        .tab-button { transition:all .3s ease; }
+        .tab-button.active { background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:white; transform:translateY(-2px); box-shadow:0 4px 12px rgba(59,130,246,.3); }
+        @media print{
+          .no-print{display:none!important;}
+          @page{size:A4 landscape; margin:1cm;}
+          body{font-size:12px;}
+          .print-table{width:100%; border-collapse:collapse;}
+          .print-table th,.print-table td{border:1px solid #000; padding:4px; text-align:center;}
+        }
+        .gradient-bg{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);}
+        .card-shadow{box-shadow:0 10px 25px rgba(0,0,0,.1);}
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Header -->
+  <div class="gradient-bg text-white py-6 shadow-lg">
+    <div class="container mx-auto px-4">
+      <h1 class="text-3xl font-bold text-center">🏫 ระบบจัดตารางสอนครู</h1>
+      <p class="text-center mt-2 opacity-90">จัดการตารางสอนประจำและการสอนแทน</p>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="container mx-auto px-4 mt-6">
+    <div class="flex space-x-2 bg-white rounded-lg p-2 card-shadow">
+      <button id="tab-regular" class="tab-button flex-1 py-3 px-6 rounded-lg font-medium transition-all active">📅 ตารางสอนประจำ</button>
+      <button id="tab-substitute" class="tab-button flex-1 py-3 px-6 rounded-lg font-medium transition-all bg-gray-100 hover:bg-gray-200">🔄 จัดสอนแทนวันนี้</button>
+    </div>
+  </div>
+
+  <!-- Regular Timetable -->
+  <div id="regular-tab" class="container mx-auto px-4 mt-6">
+    <div class="bg-white rounded-lg card-shadow p-6">
+      <div class="mb-6">
+        <div class="flex flex-wrap gap-4 items-center">
+          <div class="flex-1 min-w-64">
+            <label class="block text-sm font-medium text-gray-700 mb-2">เลือกครู</label>
+            <select id="teacherSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">-- เลือกครู --</option>
+            </select>
+          </div>
+          <button id="addTeacher" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium">➕ เพิ่มครูใหม่</button>
+        </div>
+      </div>
+
+      <div id="teacherNameSection" class="mb-6 hidden">
+        <div class="flex gap-4 items-end">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อครู</label>
+            <input type="text" id="teacherName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="กรอกชื่อครู">
+          </div>
+          <button id="saveTeacherName" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium">💾 บันทึกชื่อ</button>
+        </div>
+      </div>
+
+      <div id="timetableSection" class="hidden">
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">ตารางสอน</h3>
+          <p class="text-sm text-gray-600">คลิกในช่องเพื่อแก้ไข (เช่น "คณิตศาสตร์ / ป.3")</p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden">
+            <thead>
+              <tr>
+                <th class="day-header border border-gray-300">วัน / คาบ</th>
+                <th class="period-header border border-gray-300">คาบ 1<br><small>08:30-09:30</small></th>
+                <th class="period-header border border-gray-300">คาบ 2<br><small>09:30-10:30</small></th>
+                <th class="period-header border border-gray-300">คาบ 3<br><small>10:30-11:30</small></th>
+                <th class="period-header border border-gray-300">คาบ 4<br><small>12:30-13:30</small></th>
+                <th class="period-header border border-gray-300">คาบ 5<br><small>13:30-14:30</small></th>
+                <th class="period-header border border-gray-300">คาบ 6<br><small>14:30-15:30</small></th>
+              </tr>
+            </thead>
+            <tbody id="timetableGrid"></tbody>
+          </table>
+        </div>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+          <button id="saveGrid" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium">💾 บันทึกตารางสอน</button>
+          <button id="clearGrid" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-medium">🗑️ ล้างทั้งตาราง (ครูนี้)</button>
+          <button id="deleteTeacher" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium">❌ ลบครูนี้</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Substitute -->
+  <div id="substitute-tab" class="container mx-auto px-4 mt-6 hidden">
+    <div class="bg-white rounded-lg card-shadow p-6">
+      <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">วันที่</label>
+          <input type="date" id="subDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">ครูที่ไม่มาปฏิบัติหน้าที่</label>
+          <select id="absentTeacher" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">-- เลือกครูที่ขาด --</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="genSub" class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-medium mb-6">🔍 แสดงคาบที่ต้องสอนแทน + ผู้ว่าง</button>
+
+      <div id="subTasks" class="hidden mb-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">คาบที่ต้องหาคนสอนแทน</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="border border-gray-300 px-4 py-2 text-left">คาบ</th>
+                <th class="border border-gray-300 px-4 py-2 text-left">เวลา</th>
+                <th class="border border-gray-300 px-4 py-2 text-left">รายวิชา/ชั้น</th>
+                <th class="border border-gray-300 px-4 py-2 text-left">ครูที่ว่าง</th>
+                <th class="border border-gray-300 px-4 py-2 text-center">การดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody id="subTasksBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="assignmentSummary" class="hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">สรุปมอบหมายสอนแทน</h3>
+          <div class="flex gap-2">
+            <button id="printAssignment" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium no-print">🖨️ พิมพ์</button>
+            <button id="exportCSV" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium no-print">📊 ส่งออก CSV</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table id="assignmentTable" class="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden print-table">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="border border-gray-300 px-4 py-2 text-left">คาบ</th>
+                <th class="border border-gray-300 px-4 py-2 text-left">เวลา</th>
+                <th class="border border-gray-300 px-4 py-2 text-left">รายวิชา/ชั้น</th>
+                <th class="border border-gray-300 px-4 py-2 text-left">ครูสอนแทน</th>
+              </tr>
+            </thead>
+            <tbody id="assignmentBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase + App (module) -->
+  <script type="module">
+    // ===== Firebase SDK (v10 modular) =====
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { 
+      getFirestore, collection, doc, getDocs, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot 
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // **** ใส่ค่า config ของคุณตามที่ให้มา ****
+    const firebaseConfig = {
+      apiKey: "AIzaSyDnRSLFFEtP5cPXbbGfWe3p1PAGhlvFYr4",
+      authDomain: "mvp-wsk.firebaseapp.com",
+      projectId: "mvp-wsk",
+      storageBucket: "mvp-wsk.firebasestorage.app",
+      messagingSenderId: "90126949097",
+      appId: "1:90126949097:web:02844bcd1b6d662d042e78",
+      measurementId: "G-HF6SDL29R7"
+    };
+
+    // Init
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    // ===== Constants (เวลา/วัน) =====
+    const PERIODS = [1,2,3,4,5,6];
+    const PERIOD_TIME = {1:"08:30-09:30",2:"09:30-10:30",3:"10:30-11:30",4:"12:30-13:30",5:"13:30-14:30",6:"14:30-15:30"};
+    const DAYS = ["จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์"];
+
+    // ===== In-memory state (sync จาก Firestore) =====
+    let store = { teachers: [] };
+
+    // ===== Utilities =====
+    function createEmptyGrid(){
+      const grid={}; DAYS.forEach(d=>{ grid[d]={}; PERIODS.forEach(p=>grid[d][p]="");});
+      return grid;
+    }
+
+    function dayNameFromDateStr(dateStr){
+      const date = new Date(dateStr + "T00:00:00");
+      const idx = date.getDay(); // 0=อาทิตย์
+      const names = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+      return names[idx];
+    }
+
+    function renderGrid(teacherId){
+      const teacher = store.teachers.find(t=>t.id===teacherId);
+      if(!teacher) return;
+      const tbody = document.getElementById('timetableGrid');
+      tbody.innerHTML = '';
+
+      DAYS.forEach(day=>{
+        const tr = document.createElement('tr');
+
+        const dayCell = document.createElement('td');
+        dayCell.className = 'day-header border border-gray-300';
+        dayCell.textContent = day;
+        tr.appendChild(dayCell);
+
+        PERIODS.forEach(period=>{
+          const td = document.createElement('td');
+          td.className = 'timetable-cell';
+          td.contentEditable = true;
+          td.dataset.day = day;
+          td.dataset.period = period;
+          td.textContent = teacher.grid?.[day]?.[period] || '';
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function freeTeachersAt(day, period, excludeId){
+      return store.teachers.filter(t=>{
+        if(t.id===excludeId) return false;
+        const s = t.grid?.[day]?.[period] || '';
+        return s.trim()==='';
+      });
+    }
+
+    function populateTeacherSelect(){
+      const select = document.getElementById('teacherSelect');
+      const absentSelect = document.getElementById('absentTeacher');
+      select.innerHTML = '<option value="">-- เลือกครู --</option>';
+      absentSelect.innerHTML = '<option value="">-- เลือกครูที่ขาด --</option>';
+
+      store.teachers.forEach(t=>{
+        select.add(new Option(t.name, t.id));
+        absentSelect.add(new Option(t.name, t.id));
+      });
+    }
+
+    // ===== Firestore I/O =====
+    const teachersCol = collection(db, 'teachers');
+
+    async function seedIfEmpty(){
+      const snap = await getDocs(teachersCol);
+      if(!snap.empty) return;
+
+      const sample = [
+        { id:"t001", name:"ครูเปรมศักดิ์", grid:{
+          "จันทร์":{1:"คณิตศาสตร์ / ป.2",2:"หนูน้อย IT / ป.3",3:"",4:"หนูน้อย IT",5:"",6:""},
+          "อังคาร":{1:"การงานอาชีพ / ป.4",2:"",3:"คณิตศาสตร์ / ป.6",4:"วิทยาการคำนวณ / ป.4",5:"ชมรม",6:"Codekids digital"},
+          "พุธ":{1:"วิทยาการคำนวณ / ป.5",2:"",3:"",4:"การงานอาชีพ",5:"",6:"คณิตศาสตร์"},
+          "พฤหัสบดี":{1:"",2:"คณิตศาสตร์ / ป.2",3:"",4:"พุทธศาสนา",5:"การงานอาชีพ",6:"ยุวกาชาด"},
+          "ศุกร์":{1:"",2:"คณิตศาสตร์ / ป.6",3:"",4:"วิทยาการคำนวณ / ป.6",5:"Reading For fun",6:""}
+        }},
+        { id:"t002", name:"ครูสมชาย", grid:{
+          "จันทร์":{1:"ภาษาไทย / ป.1",2:"",3:"ภาษาไทย / ป.2",4:"ภาษาไทย / ป.3",5:"กิจกรรมลูกเสือ",6:""},
+          "อังคาร":{1:"",2:"ภาษาไทย / ป.4",3:"",4:"ภาษาไทย / ป.5",5:"",6:"ภาษาไทย / ป.6"},
+          "พุธ":{1:"",2:"ภาษาไทย / ป.1",3:"ภาษาไทย / ป.2",4:"",5:"ภาษาไทย / ป.3",6:""},
+          "พฤหัสบดี":{1:"ภาษาไทย / ป.4",2:"",3:"ภาษาไทย / ป.5",4:"",5:"",6:"ภาษาไทย / ป.6"},
+          "ศุกร์":{1:"ภาษาไทย / ป.1",2:"",3:"ภาษาไทย / ป.2",4:"",5:"ภาษาไทย / ป.3",6:"กิจกรรมพิเศษ"}
+        }},
+        { id:"t003", name:"ครูมาลี", grid:{
+          "จันทร์":{1:"",2:"ภาษาอังกฤษ / ป.1",3:"ภาษาอังกฤษ / ป.2",4:"",5:"ภาษาอังกฤษ / ป.3",6:"English Club"},
+          "อังคาร":{1:"ภาษาอังกฤษ / ป.4",2:"ภาษาอังกฤษ / ป.5",3:"",4:"",5:"ภาษาอังกฤษ / ป.6",6:""},
+          "พุธ":{1:"",2:"",3:"ภาษาอังกฤษ / ป.1",4:"ภาษาอังกฤษ / ป.2",5:"ภาษาอังกฤษ / ป.3",6:""},
+          "พฤหัสบดี":{1:"ภาษาอังกฤษ / ป.4",2:"",3:"",4:"ภาษาอังกฤษ / ป.5",5:"ภาษาอังกฤษ / ป.6",6:""},
+          "ศุกร์":{1:"",2:"ภาษาอังกฤษ / ป.1",3:"",4:"ภาษาอังกฤษ / ป.2",5:"",6:"English Camp"}
+        }},
+        { id:"t004", name:"ครูสุดา", grid:{
+          "จันทร์":{1:"วิทยาศาสตร์ / ป.4",2:"",3:"",4:"วิทยาศาสตร์ / ป.5",5:"วิทยาศาสตร์ / ป.6",6:""},
+          "อังคาร":{1:"",2:"วิทยาศาสตร์ / ป.1",3:"วิทยาศาสตร์ / ป.2",4:"",5:"",6:"วิทยาศาสตร์ / ป.3"},
+          "พุธ":{1:"",2:"วิทยาศาสตร์ / ป.4",3:"",4:"วิทยาศาสตร์ / ป.5",5:"",6:"วิทยาศาสตร์ / ป.6"},
+          "พฤหัสบดี":{1:"วิทยาศาสตร์ / ป.1",2:"วิทยาศาสตร์ / ป.2",3:"วิทยาศาสตร์ / ป.3",4:"",5:"",6:""},
+          "ศุกร์":{1:"วิทยาศาสตร์ / ป.4",2:"",3:"วิทยาศาสตร์ / ป.5",4:"",5:"วิทยาศาสตร์ / ป.6",6:"ชมรมวิทยาศาสตร์"}
+        }},
+        { id:"t005", name:"ครูวิชัย", grid:{
+          "จันทร์":{1:"",2:"สังคมศึกษา / ป.1",3:"สังคมศึกษา / ป.2",4:"",5:"",6:"สังคมศึกษา / ป.3"},
+          "อังคาร":{1:"สังคมศึกษา / ป.4",2:"",3:"",4:"สังคมศึกษา / ป.5",5:"สังคมศึกษา / ป.6",6:""},
+          "พุธ":{1:"",2:"สังคมศึกษา / ป.1",3:"สังคมศึกษา / ป.2",4:"",5:"สังคมศึกษา / ป.3",6:""},
+          "พฤหัสบดี":{1:"สังคมศึกษา / ป.4",2:"",3:"สังคมศึกษา / ป.5",4:"",5:"",6:"สังคมศึกษา / ป.6"},
+          "ศุกร์":{1:"",2:"",3:"สังคมศึกษา / ป.1",4:"สังคมศึกษา / ป.2",5:"",6:"กิจกรรมสังคม"}
+        }},
+        { id:"t006", name:"ครูนิภา", grid:{
+          "จันทร์":{1:"",2:"",3:"ศิลปะ / ป.1",4:"ศิลปะ / ป.2",5:"ศิลปะ / ป.3",6:""},
+          "อังคาร":{1:"",2:"ศิลปะ / ป.4",3:"ศิลปะ / ป.5",4:"",5:"",6:"ศิลปะ / ป.6"},
+          "พุธ":{1:"ศิลปะ / ป.1",2:"",3:"",4:"ศิลปะ / ป.2",5:"ศิลปะ / ป.3",6:""},
+          "พฤหัสบดี":{1:"",2:"ศิลปะ / ป.4",3:"",4:"ศิลปะ / ป.5",5:"ศิลปะ / ป.6",6:""},
+          "ศุกร์":{1:"ศิลปะ / ป.1",2:"",3:"",4:"",5:"",6:"ชมรมศิลปะ"}
+        }}
+      ];
+
+      // ใช้ setDoc แบบกำหนด id คงที่ เพื่อให้ onSnapshot จับคู่ id ได้
+      await Promise.all(sample.map(s => setDoc(doc(db,'teachers',s.id), { name:s.name, grid:s.grid } )));
+    }
+
+    // เรียกทุกครั้งที่เปิดเว็บ: subscribe เรียลไทม์
+    function subscribeTeachers(){
+      onSnapshot(teachersCol, (snapshot)=>{
+        // map docs -> store.teachers
+        store.teachers = snapshot.docs.map(d => ({ id:d.id, ...d.data() }));
+        populateTeacherSelect();
+
+        // ถ้ายังเลือกครูอยู่ ให้รีเฟรชตารางให้ตรงกับข้อมูลล่าสุด
+        const currentId = document.getElementById('teacherSelect').value;
+        if(currentId){
+          const t = store.teachers.find(x=>x.id===currentId);
+          if(t){
+            document.getElementById('teacherName').value = t.name || '';
+            document.getElementById('teacherNameSection').classList.remove('hidden');
+            document.getElementById('timetableSection').classList.remove('hidden');
+            renderGrid(currentId);
+          }
+        }
+      });
+    }
+
+    // ===== Actions (CRUD) =====
+    async function addTeacher(){
+      const name = prompt('กรอกชื่อครูใหม่:');
+      if(!name || !name.trim()) return;
+      const grid = createEmptyGrid();
+      // ให้ Firestore สร้าง id อัตโนมัติ
+      const ref = await addDoc(teachersCol, { name:name.trim(), grid });
+      // เลือกครูที่เพิ่งสร้าง
+      document.getElementById('teacherSelect').value = ref.id;
+      document.getElementById('teacherSelect').dispatchEvent(new Event('change'));
+    }
+
+    async function saveTeacherName(){
+      const id = document.getElementById('teacherSelect').value;
+      const newName = document.getElementById('teacherName').value.trim();
+      if(!id || !newName) return;
+      await updateDoc(doc(db,'teachers',id), { name:newName });
+    }
+
+    async function saveGrid(){
+      const id = document.getElementById('teacherSelect').value;
+      if(!id) return;
+      const teacher = store.teachers.find(t=>t.id===id);
+      if(!teacher) return;
+
+      // อ่านค่าจาก cell ทั้งหมด
+      const cells = document.querySelectorAll('#timetableGrid .timetable-cell');
+      const newGrid = structuredClone(teacher.grid || createEmptyGrid());
+      cells.forEach(cell=>{
+        const day = cell.dataset.day;
+        const period = parseInt(cell.dataset.period);
+        if(!newGrid[day]) newGrid[day]={};
+        newGrid[day][period] = cell.textContent.trim();
+      });
+      await updateDoc(doc(db,'teachers',id), { grid:newGrid });
+
+      // UI feedback
+      const btn = document.getElementById('saveGrid');
+      const old = btn.textContent;
+      btn.textContent = '✅ บันทึกแล้ว';
+      btn.classList.remove('bg-blue-500'); btn.classList.add('bg-green-500');
+      setTimeout(()=>{ btn.textContent = old; btn.classList.remove('bg-green-500'); btn.classList.add('bg-blue-500'); }, 1800);
+    }
+
+    async function clearGrid(){
+      if(!confirm('ต้องการล้างตารางสอนของครูนี้ใช่หรือไม่?')) return;
+      const id = document.getElementById('teacherSelect').value;
+      if(!id) return;
+      const empty = createEmptyGrid();
+      await updateDoc(doc(db,'teachers',id), { grid:empty });
+      renderGrid(id);
+    }
+
+    async function deleteTeacher(){
+      const id = document.getElementById('teacherSelect').value;
+      if(!id) return;
+      const t = store.teachers.find(x=>x.id===id);
+      if(!t) return;
+      if(!confirm(`ต้องการลบครู "${t.name}" ใช่หรือไม่?`)) return;
+      await deleteDoc(doc(db,'teachers',id));
+      document.getElementById('teacherSelect').value = '';
+      document.getElementById('teacherNameSection').classList.add('hidden');
+      document.getElementById('timetableSection').classList.add('hidden');
+    }
+
+    function generateSubstituteTasks(){
+      const dateStr = document.getElementById('subDate').value;
+      const absentId = document.getElementById('absentTeacher').value;
+      if(!dateStr || !absentId){ alert('กรุณาเลือกวันที่และครูที่ขาด'); return; }
+
+      const dayName = dayNameFromDateStr(dateStr);
+      if(!DAYS.includes(dayName)){ alert('วันที่เลือกไม่ใช่วันจันทร์-ศุกร์'); return; }
+
+      const absentTeacher = store.teachers.find(t=>t.id===absentId);
+      if(!absentTeacher) return;
+
+      const tasks = PERIODS.filter(p=>{
+        const subj = absentTeacher.grid?.[dayName]?.[p];
+        return subj && subj.trim() !== '';
+      });
+      if(tasks.length===0){ alert('ครูที่เลือกไม่มีคาบสอนในวันนี้'); return; }
+
+      const tbody = document.getElementById('subTasksBody');
+      tbody.innerHTML = '';
+      tasks.forEach(period=>{
+        const subject = absentTeacher.grid[dayName][period];
+        const freeTs = freeTeachersAt(dayName, period, absentId);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="border border-gray-300 px-4 py-2 font-medium">คาบ ${period}</td>
+          <td class="border border-gray-300 px-4 py-2">${PERIOD_TIME[period]}</td>
+          <td class="border border-gray-300 px-4 py-2">${subject}</td>
+          <td class="border border-gray-300 px-4 py-2">
+            <select class="w-full px-2 py-1 border border-gray-300 rounded" data-period="${period}" data-subject="${subject}">
+              <option value="">-- เลือกครูสอนแทน --</option>
+              ${freeTs.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+            </select>
+          </td>
+          <td class="border border-gray-300 px-4 py-2 text-center">
+            <button class="assign-btn bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium" data-period="${period}" data-subject="${subject}">
+              มอบหมาย
+            </button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('subTasks').classList.remove('hidden');
+
+      document.querySelectorAll('.assign-btn').forEach(btn=>{
+        btn.addEventListener('click', function(){
+          const period = this.dataset.period;
+          const subject = this.dataset.subject;
+          const select = document.querySelector(`select[data-period="${period}"]`);
+          const substituteId = select.value;
+          if(!substituteId){ alert('กรุณาเลือกครูสอนแทน'); return; }
+          const substitute = store.teachers.find(t=>t.id===substituteId);
+          if(!substitute) return;
+          addToAssignmentSummary(period, PERIOD_TIME[period], subject, substitute.name);
+          this.closest('tr').remove();
+          if(document.querySelectorAll('#subTasksBody tr').length===0){
+            document.getElementById('subTasks').classList.add('hidden');
+          }
+        });
+      });
+    }
+
+    function addToAssignmentSummary(period, time, subject, substituteName){
+      const tbody = document.getElementById('assignmentBody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="border border-gray-300 px-4 py-2">คาบ ${period}</td>
+        <td class="border border-gray-300 px-4 py-2">${time}</td>
+        <td class="border border-gray-300 px-4 py-2">${subject}</td>
+        <td class="border border-gray-300 px-4 py-2">${substituteName}</td>`;
+      tbody.appendChild(tr);
+      document.getElementById('assignmentSummary').classList.remove('hidden');
+    }
+
+    function printAssignment(){ window.print(); }
+
+    function exportCSV(){
+      const table = document.getElementById('assignmentTable');
+      const rows = table.querySelectorAll('tr');
+      let csv = '\uFEFF';
+      rows.forEach(r=>{
+        const cells = r.querySelectorAll('th,td');
+        const row = Array.from(cells).map(c=>`"${c.textContent.trim()}"`).join(',');
+        csv += row + '\n';
+      });
+      const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `substitute_teaching_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    function switchTab(tab){
+      document.querySelectorAll('.tab-button').forEach(b=>{ b.classList.remove('active'); b.classList.add('bg-gray-100','hover:bg-gray-200'); });
+      document.getElementById('regular-tab').classList.add('hidden');
+      document.getElementById('substitute-tab').classList.add('hidden');
+
+      if(tab==='regular'){
+        const b = document.getElementById('tab-regular');
+        b.classList.add('active'); b.classList.remove('bg-gray-100','hover:bg-gray-200');
+        document.getElementById('regular-tab').classList.remove('hidden');
+      }else{
+        const b = document.getElementById('tab-substitute');
+        b.classList.add('active'); b.classList.remove('bg-gray-100','hover:bg-gray-200');
+        document.getElementById('substitute-tab').classList.remove('hidden');
+      }
+    }
+
+    // ===== Boot =====
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      // seed ครั้งแรกถ้าไม่มีข้อมูล
+      await seedIfEmpty();
+
+      // subscribe ข้อมูลครูแบบเรียลไทม์
+      subscribeTeachers();
+
+      // ตั้งค่าวันนี้
+      document.getElementById('subDate').valueAsDate = new Date();
+
+      // Tab events
+      document.getElementById('tab-regular').addEventListener('click', ()=>switchTab('regular'));
+      document.getElementById('tab-substitute').addEventListener('click', ()=>switchTab('substitute'));
+
+      // Select teacher
+      document.getElementById('teacherSelect').addEventListener('change', function(){
+        const id = this.value;
+        if(id){
+          const t = store.teachers.find(x=>x.id===id);
+          document.getElementById('teacherName').value = t?.name || '';
+          document.getElementById('teacherNameSection').classList.remove('hidden');
+          document.getElementById('timetableSection').classList.remove('hidden');
+          renderGrid(id);
+        }else{
+          document.getElementById('teacherNameSection').classList.add('hidden');
+          document.getElementById('timetableSection').classList.add('hidden');
+        }
+      });
+
+      // Buttons
+      document.getElementById('addTeacher').addEventListener('click', addTeacher);
+      document.getElementById('saveTeacherName').addEventListener('click', saveTeacherName);
+      document.getElementById('saveGrid').addEventListener('click', saveGrid);
+      document.getElementById('clearGrid').addEventListener('click', clearGrid);
+      document.getElementById('deleteTeacher').addEventListener('click', deleteTeacher);
+      document.getElementById('genSub').addEventListener('click', generateSubstituteTasks);
+      document.getElementById('printAssignment').addEventListener('click', printAssignment);
+      document.getElementById('exportCSV').addEventListener('click', exportCSV);
+    });
+  </script>
+</body>
+</html>

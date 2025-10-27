@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OCR รูปตารางสอน → JSON (TH)</title>
+<style>
+  :root{--b:#0ea5e9;--g:#16a34a;--r:#ef4444;}
+  body{font-family:system-ui,-apple-system,'Sarabun',sans-serif;max-width:900px;margin:28px auto;padding:0 16px;}
+  h1{font-size:22px;margin:6px 0 16px;}
+  .drop{border:2px dashed #94a3b8;border-radius:14px;padding:22px;text-align:center;background:#f8fafc}
+  .drop.drag{background:#e0f2fe;border-color:var(--b)}
+  .row{display:flex;gap:10px;align-items:center;margin:10px 0;}
+  .btn{padding:10px 14px;border:0;border-radius:10px;background:var(--b);color:#fff;cursor:pointer}
+  .btn.sec{background:#334155}
+  .btn:disabled{opacity:.65;cursor:not-allowed}
+  progress{width:100%}
+  pre{background:#0b1020;color:#d1e7ff;padding:14px;border-radius:10px;white-space:pre-wrap;max-height:420px;overflow:auto}
+  .card{border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin:10px 0}
+  .small{color:#64748b;font-size:12px}
+  .ok{color:var(--g)}
+  .err{color:var(--r)}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <h1>ถอดข้อความจากรูปตารางสอน → JSON</h1>
+  <div class="drop" id="drop">
+    <p><b>ลากรูปมาวางที่นี่</b> หรือ <label class="btn"><input type="file" id="fileInput" accept="image/*" multiple hidden>เลือกไฟล์</label></p>
+    <p class="small">รองรับข้อความไทย/อังกฤษ (ใช้ Tesseract.js ในเบราว์เซอร์เครื่องคุณ)</p>
+  </div>
+
+  <div id="jobs"></div>
+
+  <div class="row">
+    <button id="download" class="btn" disabled>📥 ดาวน์โหลด JSON</button>
+    <button id="copy" class="btn sec" disabled>📋 คัดลอก JSON</button>
+  </div>
+
+  <div class="card">
+    <div class="small">ผลลัพธ์ JSON</div>
+    <pre id="out">{}</pre>
+  </div>
+
+<script>
+const outEl = document.getElementById('out');
+const jobsEl = document.getElementById('jobs');
+const downloadBtn = document.getElementById('download');
+const copyBtn = document.getElementById('copy');
+
+let results = []; // [{imageName, day, periods, rawText, lines[]}]
+
+const TH_DAYS = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+
+// แปลงเลขไทย → อารบิก
+function thNumToAr(s){
+  const map = {'๐':'0','๑':'1','๒':'2','๓':'3','๔':'4','๕':'5','๖':'6','๗':'7','๘':'8','๙':'9'};
+  return s.replace(/[๐-๙]/g, d => map[d] ?? d);
+}
+
+// เดา "วัน" จากหัวกระดาษ
+function detectDay(text){
+  for (const d of TH_DAYS){
+    const re = new RegExp(d, 'g');
+    if (re.test(text)) return d;
+  }
+  return ""; // ไม่เจอ
+}
+
+// เดา period-time จากหัวตาราง (ถ้าไม่เจอ ใช้ค่ามาตรฐาน 6 คาบ)
+function detectPeriods(text){
+  const t = thNumToAr(text);
+  // จับช่วงเวลาแบบ 08:30-09:30 หรือ 08.30-09.30
+  const re = /(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})/g;
+  const found = [];
+  let m;
+  while ((m = re.exec(t)) !== null){
+    found.push(m[0].replace(/\s/g,'').replace(/\./g,':'));
+  }
+  // กรองซ้ำ และไม่เอาของหัวข้ออื่น
+  const uniq = [...new Set(found)];
+  if (uniq.length >= 4) return uniq; // พอมีหลายช่วงแล้วถือว่าเจอ
+  // fallback default 6 คาบ
+  return ["08:30-09:30","09:30-10:30","10:30-11:30","12:30-13:30","13:30-14:30","14:30-15:30"];
+}
+
+// แปลงเป็นอาร์เรย์บรรทัดสะอาด
+function textToLines(text){
+  return text
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+// เรียก OCR ทีละไฟล์
+async function ocrOne(file){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div><b>${file.name}</b></div>
+    <div class="row"><progress max="1" value="0"></progress><span class="small" id="st">เริ่ม OCR...</span></div>
+    <div class="small" id="d"></div>
+  `;
+  jobsEl.appendChild(card);
+  const prog = card.querySelector('progress');
+  const st = card.querySelector('#st');
+  const d = card.querySelector('#d');
+
+  const worker = await Tesseract.createWorker("tha+eng", 1, {
+    logger: m => {
+      if (m.status === 'recognizing text'){
+        prog.value = m.progress;
+        st.textContent = `OCR ${(m.progress*100).toFixed(0)}%`;
+      }
+    }
+  });
+
+  let text = "";
+  try{
+    const { data } = await worker.recognize(file);
+    text = data.text || "";
+    await worker.terminate();
+    st.innerHTML = `<span class="ok">สำเร็จ</span>`;
+  }catch(e){
+    st.innerHTML = `<span class="err">ผิดพลาด</span>`;
+    d.textContent = e?.message || e;
+    try{ await worker.terminate(); }catch(_){}
+  }
+
+  const lines = textToLines(text);
+  const day = detectDay(text);
+  const periods = detectPeriods(text);
+
+  results.push({
+    imageName: file.name,
+    day,
+    periods,
+    rawText: text,
+    lines
+  });
+
+  renderJSON();
+}
+
+function renderJSON(){
+  const payload = {
+    generated_at: new Date().toISOString(),
+    pages: results
+  };
+  outEl.textContent = JSON.stringify(payload, null, 2);
+  const enabled = results.length > 0;
+  downloadBtn.disabled = !enabled;
+  copyBtn.disabled = !enabled;
+}
+
+downloadBtn.addEventListener('click', ()=>{
+  const blob = new Blob([outEl.textContent], {type:'application/json;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `timetable_ocr_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
+
+copyBtn.addEventListener('click', async ()=>{
+  await navigator.clipboard.writeText(outEl.textContent);
+  copyBtn.textContent = '✅ คัดลอกแล้ว';
+  setTimeout(()=> copyBtn.textContent = '📋 คัดลอก JSON', 1200);
+});
+
+// รับไฟล์
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', e => {
+  results = [];
+  renderJSON();
+  [...e.target.files].forEach(ocrOne);
+});
+
+// drag & drop
+const drop = document.getElementById('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', ()=> drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag');
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  results = [];
+  renderJSON();
+  files.forEach(ocrOne);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ระบบจัดตารางสอนครู</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Sarabun', sans-serif; }
+    .timetable-cell { min-height:60px; border:1px solid #e5e7eb; padding:8px; text-align:center; vertical-align:middle; background:white; transition:all .2s; }
+    .timetable-cell:hover { background:#f3f4f6; }
+    .timetable-cell:focus { outline:2px solid #3b82f6; background:#eff6ff; }
+    .day-header { background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:white; font-weight:600; padding:12px; text-align:center; }
+    .period-header { background:linear-gradient(135deg,#10b981,#059669); color:white; font-weight:600; padding:12px; text-align:center; writing-mode:vertical-rl; text-orientation:mixed; }
+    .info-header { background:linear-gradient(135deg,#9ca3af,#6b7280); color:white; font-weight:600; padding:12px; text-align:center; writing-mode:vertical-rl; text-orientation:mixed; }
+    .static-cell { min-height:60px; border:1px solid #e5e7eb; padding:8px; text-align:center; vertical-align:middle; background:#f8fafc; color:#334155; font-style:italic; user-select:none; }
+    .tab-button { transition:all .3s ease; }
+    .tab-button.active { background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:white; transform:translateY(-2px); box-shadow:0 4px 12px rgba(59,130,246,.3); }
+    .gradient-bg{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);}
+    .card-shadow{box-shadow:0 10px 25px rgba(0,0,0,.1);}
+    @media print{
+      .no-print{display:none!important;}
+      @page{size:A4 landscape; margin:1cm;}
+      body{font-size:12px;}
+      .print-table{width:100%; border-collapse:collapse;}
+      .print-table th,.print-table td{border:1px solid #000; padding:4px; text-align:center; vertical-align:middle;}
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Header -->
+  <div class="gradient-bg text-white py-6 shadow-lg">
+  <div class="container mx-auto px-4">
+    <div class="flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-6">
+      
+      <!-- โลโก้ -->
+      <div class="flex-shrink-0">
+        <img src="logo.png" alt="โลโก้โรงเรียน" class="w-16 h-16 rounded-full border border-white/30 shadow-md bg-white/10 p-1 object-contain">
+      </div>
+
+      <!-- ข้อความ -->
+      <div class="text-center sm:text-left">
+        <h1 class="text-3xl font-bold leading-tight">
+          ระบบจัดตารางสอนครู
+        </h1>
+      
+        <p class="mt-2 opacity-90 text-sm sm:text-base">
+           โรงเรียนบ้านบึงกาฬ
+        สำนักงานเขตพื้นที่การศึกษาประถมศึกษาบึงกาฬ
+        </p>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+  <!-- Tabs -->
+  <div class="container mx-auto px-4 mt-6">
+    <div class="flex space-x-2 bg-white rounded-lg p-2 card-shadow">
+      <button id="tab-regular" class="tab-button flex-1 py-3 px-6 rounded-lg font-medium transition-all active">📅 ตารางสอนประจำ</button>
+      <button id="tab-substitute" class="tab-button flex-1 py-3 px-6 rounded-lg font-medium transition-all bg-gray-100 hover:bg-gray-200">🔄 จัดสอนแทนวันนี้</button>
+    </div>
+  </div>
+
+  <!-- Regular Timetable -->
+  <div id="regular-tab" class="container mx-auto px-4 mt-6">
+    <div class="bg-white rounded-lg card-shadow p-6">
+      <div class="mb-6">
+        <div class="flex flex-wrap gap-3 items-center">
+          <div class="flex-1 min-w-64">
+            <label class="block text-sm font-medium text-gray-700 mb-2">เลือกครู</label>
+            <select id="teacherSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              <option value="">-- เลือกครู --</option>
+            </select>
+          </div>
+
+          <!-- ปุ่มเครื่องมือ -->
+          <div class="flex gap-2 items-center">
+            <button id="addTeacher" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium">
+              ➕ เพิ่มครูใหม่
+            </button>
+
+            <!-- ปุ่ม JSON -->
+            <button id="openPasteModal" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">
+              📝 วาง JSON เอง
+            </button>
+            <button id="importJSON" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg">
+              ⬆️ ไฟล์ JSON
+            </button>
+            <input id="jsonFileInput" type="file" accept="application/json" class="hidden">
+          </div>
+        </div>
+
+        <!-- Modal: Paste JSON -->
+        <div id="jsonPasteModal" class="fixed inset-0 bg-black/50 hidden z-50 items-center justify-center p-4">
+          <div class="bg-white w-full max-w-3xl rounded-lg shadow-xl">
+            <div class="flex items-center justify-between px-4 py-3 border-b">
+              <h3 class="font-semibold text-lg">วาง JSON เพื่อเพิ่มข้อมูล</h3>
+              <button id="closePasteModal" class="text-gray-500 hover:text-gray-700">✖</button>
+            </div>
+            <div class="p-4">
+              <textarea id="jsonPasteInput" class="w-full h-64 border rounded p-3 font-mono text-sm"
+                placeholder='วาง JSON ที่นี่...'></textarea>
+              <div class="mt-3 flex flex-wrap gap-2 justify-end">
+                <button id="pasteJSONExample" class="px-3 py-2 rounded border">ใส่โครงตัวอย่าง</button>
+                <button id="validateJSONBtn" class="px-3 py-2 rounded bg-amber-500 text-white">ตรวจสอบ JSON</button>
+                <button id="importJSONFromTextarea" class="px-3 py-2 rounded bg-teal-600 text-white">นำเข้า</button>
+              </div>
+              <div id="jsonPasteFeedback" class="mt-2 text-sm"></div>
+            </div>
+          </div>
+        </div>
+        <!-- /Modal -->
+      </div>
+
+      <div id="teacherNameSection" class="mb-6 hidden">
+        <div class="flex gap-4 items-end">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อครู</label>
+            <input type="text" id="teacherName" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <button id="saveTeacherName" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium">
+            💾 บันทึกชื่อ
+          </button>
+        </div>
+      </div>
+
+      <div id="timetableSection" class="hidden">
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">ตารางสอน</h3>
+          <p class="text-sm text-gray-600">คอลัมน์ “โฮมรูม” และ “พักกลางวัน” เป็นคงที่ ไม่ต้องกรอก</p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden">
+            <thead>
+              <tr>
+                <th class="day-header border">วัน / คาบ</th>
+                <th class="info-header border">โฮมรูม<br><small>08:00-08:30</small></th>
+                <th class="period-header border">คาบ 1<br><small id="p1Time">08:30-09:30</small></th>
+                <th class="period-header border">คาบ 2<br><small id="p2Time">09:30-10:30</small></th>
+                <th class="period-header border">คาบ 3<br><small id="p3Time">10:30-11:30</small></th>
+                <th class="info-header border">พักกลางวัน<br><small id="lunchTime">11:30-12:30</small></th>
+                <th class="period-header border">คาบ 4<br><small id="p4Time">12:30-13:30</small></th>
+                <th class="period-header border">คาบ 5<br><small id="p5Time">13:30-14:30</small></th>
+                <th class="period-header border">คาบ 6<br><small id="p6Time">14:30-15:30</small></th>
+              </tr>
+            </thead>
+            <tbody id="timetableGrid"></tbody>
+          </table>
+        </div>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+          <button id="saveGrid" class="bg-blue-500 text-white px-4 py-2 rounded-lg">💾 บันทึกตารางสอน</button>
+          <button id="clearGrid" class="bg-yellow-500 text-white px-4 py-2 rounded-lg">🗑️ ล้างทั้งตาราง</button>
+          <button id="deleteTeacher" class="bg-red-500 text-white px-4 py-2 rounded-lg">❌ ลบครูนี้</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Substitute -->
+  <div id="substitute-tab" class="container mx-auto px-4 mt-6 hidden">
+    <div class="bg-white rounded-lg card-shadow p-6">
+      <div class="grid md:grid-cols-3 gap-6 mb-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">วันที่</label>
+          <input type="date" id="subDate" class="w-full px-4 py-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">ครูที่ไม่มาปฏิบัติหน้าที่</label>
+          <select id="absentTeacher" class="w-full px-4 py-2 border rounded-lg">
+            <option value="">-- เลือกครูที่ขาด --</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">สาเหตุที่ไม่มาปฏิบัติราชการ</label>
+          <input type="text" id="absenceReason" class="w-full px-4 py-2 border rounded-lg" placeholder="เช่น อบรม/ลากิจ/พานักเรียนแข่งขัน ฯลฯ">
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2 mb-6">
+        <button id="genSub" class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg">🔍 แสดงคาบที่ต้องสอนแทน + ผู้ว่าง</button>
+        <button id="openPrintPage" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg">🖨️ เปิดหน้าปริ้นตามวันที่</button>
+        <button id="openHistoryPage" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg">📜 ประวัติรายวัน</button>
+      </div>
+
+      <!-- Tasks -->
+      <div id="subTasks" class="hidden mb-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">คาบที่ต้องหาคนสอนแทน</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border rounded-lg overflow-hidden">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="border px-2 py-2 text-left">คาบ</th>
+                <th class="border px-2 py-2 text-left">เวลา</th>
+                <th class="border px-2 py-2 text-left">รายวิชา/ชั้น</th>
+                <th class="border px-2 py-2 text-left">ครูที่ว่าง / มอบหมายแล้ว</th>
+                <th class="border px-2 py-2 text-center">การดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody id="subTasksBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div id="assignmentSummary" class="hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">สรุปมอบหมายสอนแทน (วันนี้)</h3>
+          <button id="exportCSV" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg no-print">📊 ส่งออก CSV</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table id="assignmentTable" class="w-full border-collapse border rounded-lg overflow-hidden print-table">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="border px-2 py-2">คาบ</th>
+                <th class="border px-2 py-2">เวลา</th>
+                <th class="border px-2 py-2">รายวิชา/ชั้น</th>
+                <th class="border px-2 py-2">ครูสอนแทน</th>
+              </tr>
+            </thead>
+            <tbody id="assignmentBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App code -->
+  <script type="module" src="index.js"></script>
+</body>
+</html>
