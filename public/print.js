@@ -5,13 +5,13 @@ import {
 
 /** Firebase config (เหมือนโปรเจกต์หลัก) */
 const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
-  measurementId: ""
+ apiKey: "AIzaSyCrcI_jyd8DcMKby8Qz_afA6ewTLCdrFo4",
+  authDomain: "sorntan-bbk.firebaseapp.com",
+  projectId: "sorntan-bbk",
+  storageBucket: "sorntan-bbk.firebasestorage.app",
+  messagingSenderId: "720649104047",
+  appId: "1:720649104047:web:d00383683227796cc9825a",
+  measurementId: "G-KWCCKBDZMN"
 };
 
 
